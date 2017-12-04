@@ -1,1 +1,1 @@
-Small utils that livie in $HOME/bin
+Small utils that live in $HOME/bin
