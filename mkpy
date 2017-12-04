@@ -1,0 +1,201 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""
+..codeauthor:: Paul Munday <paul@paulmunday.net>
+
+Script for generating .py files accoridng to standard template.
+Automatically adds correct copyright etc.
+"""
+# Imports from Standard Library
+import argparse
+import datetime
+import os.path
+import sys
+
+# Imports from Third Party Modules
+
+# Imports from Django
+
+# Local Imports
+
+# Constants
+COPYRIGHT_HOLDER = 'Paul Munday.'
+
+HEADER = [
+    '#!/usr/bin/env python\n',
+    '# encoding: utf-8\n'
+]
+
+SECTIONS_1 = [
+    '# Imports from Standard Library\n\n',
+    '# Imports from Third Party Modules\n\n',
+]
+
+SECTIONS_2 = [
+    '# Local Imports\n\n',
+    '# Setup\n\n',
+    '# Constants\n\n',
+    '# Data Structure Definitions\n\n\n',
+    '# Private Classes and Functions\n\n\n',
+    '# Public Classes and Functions\n\n',
+]
+
+
+# Data Structure Definitions
+
+# Private Functions
+
+# Public Classes and Functions
+
+
+def get_args():
+    """Process command line args."""
+    parser = argparse.ArgumentParser(
+        description='Generate a blank .py file from the standard template'
+    )
+
+    parser.add_argument(
+        'filename', help="Name of file to create: /path/to/file[.py]"
+    )
+    parser.add_argument(
+        '-d', '--django',
+        help='Use this for django files', action='store_true'
+    )
+    parser.add_argument(
+        '-e', '--email',
+        help="Email of author, requires name if used."
+    )
+    parser.add_argument(
+        '-i', '--init',
+        help="Create an __init__.py file", action='store_true'
+    )
+    parser.add_argument(
+        '-n', '--name',
+        help="Name of author, requires email if used."
+    )
+    parser.add_argument(
+        '-R', '--report',
+        help='echo name and path of created file to standard out',
+        action='store_true'
+    )
+    parser.add_argument(
+        '-s', '--script',
+        help='Use this for executable scripts', action='store_true'
+    )
+    parser.add_argument(
+        '-C', '--copyright',
+        help='Set copyright holder'
+    )
+    parser.add_argument(
+        '-t', '--tests',
+        help='Use this for unit tests', action='store_true'
+    )
+    args = parser.parse_args()
+    if (args.name or args.email) and not (args.name and args.email):
+        parser.error('Email and name are both required, if one is used.')
+    return args
+
+
+def get_author_line(args):
+    """Add line for author"""
+    aline = "..codeauthor::{} <{}>\n".format(args.name, args.email)
+    return aline
+
+
+def get_copyright(args):
+    """Copyright Line."""
+    year = datetime.date.today().year
+    start = year
+    copyright_holder = args.copyright if args.copyright else COPYRIGHT_HOLDER
+    return "copyright (c) {}{} {}\n".format(
+        start, '-{}'.format(year) if year > start else '', copyright_holder
+    )
+
+
+def get_test_imports(args):
+    """Test imports"""
+    test_imports = []
+    django = False
+    if args.django:
+        django = True
+    test_imports.append('# Imports from Standard Library\n')
+    if not django:
+        test_imports.append('import unittest\n\n')
+    else:
+        test_imports.append('\n')
+        test_imports.append('# Imports from Third Party Modules\n')
+    test_imports.append('import unittest.mock\n')
+    if django:
+        test_imports.append('\n# Imports from Django\n')
+        test_imports.append('from django.test import TestCase\n')
+    test_imports.extend(
+        ['\n', '# Local Imports\n\n', '# Constants\n\n',
+         '# Helper Functions & Classes\n\n', '# Tests\n\n']
+    )
+    return test_imports
+
+
+def main():
+    """Where the magic happens"""
+    # pylint: disable=too-many-branches,fixme,too-many-statements
+    args = get_args()
+    if args.init:
+        path = args.filename
+        filename = '__init__.py'
+    else:
+        path, filename = os.path.split(args.filename)
+        if not filename.endswith('.py'):
+            filename += '.py'
+    if args.tests and not filename.startswith('test_'):
+        filename = 'test_{}'.format(filename)
+    filename = os.path.join(path, filename)
+    if os.path.exists(filename):
+        print("Cowardly refusing to overwrite existing file")
+        sys.exit(1)
+    with open(filename, 'w') as pyfile:
+        pyfile.writelines(HEADER)
+        pyfile.write('"""\n')
+        if args.copyright:
+            pyfile.write(get_copyright(args))
+            pyfile.write('All rights reserved\n')
+        if args.name:
+            pyfile.write(get_author_line(args))
+        if not args.init:
+            pyfile.write('\n[ INSERT DOC STRING ]  # TODO\n')
+        pyfile.write('"""\n\n')
+
+        if args.tests:
+            pyfile.writelines(get_test_imports(args))
+        elif not args.init:
+            pyfile.writelines(SECTIONS_1)
+            if args.django:
+                pyfile.write('# Imports from Django\n\n')
+            pyfile.writelines(SECTIONS_2)
+            pyfile.write('\n')
+        if args.script:
+            pyfile.write('def main():\n')
+            pyfile.write('    """[ INSERT DOCSTRING ]"""  # TODO\n')
+            pyfile.write('    pass\n\n')
+            pyfile.write('if __name__ == "__main__":\n')
+            pyfile.write('    main()')
+        if args.tests:
+            pyfile.write('class MyTests(unittest.TestCase):\n')
+            pyfile.write('    """[ INSERT DOCSTRING ]"""  # TODO\n')
+            # pylint:disable=bad-option-value
+            pyfile.write('    # pylint: disable=R0904,invalid-name\n\n')  # noqa
+            pyfile.write('    def setUp(self):\n')
+            pyfile.write('        pass\n')
+            pyfile.write('    def tearDown(self):\n')
+            pyfile.write('        pass\n')
+            pyfile.write('    def test_example(self):\n')
+            pyfile.write('        self.assertEqual(True, False)\n')
+            pyfile.write('\n\n')
+            pyfile.write('if __name__ == "__main__":\n')
+            pyfile.write('    unittest.main()')
+
+        if args.report:
+            print(filename)
+
+
+if __name__ == "__main__":
+    main()

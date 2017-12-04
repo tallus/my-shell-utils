@@ -1,0 +1,7 @@
+#!/bin/bash
+# source /etc/bash_completion.d/virtualenvwrapper
+source /usr/local/bin/virtualenvwrapper.sh
+mkvirtualenv --python=/usr/local/bin/python3 $1
+# upgrade pip
+# pip3 install -U pip3
+pip3 install flake8 frosted pep8 prospector pyflakes pylama pylint
